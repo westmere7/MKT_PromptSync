@@ -1,8 +1,6 @@
-import Link from 'next/link'
 import { isFirebaseConfigured } from '@/lib/firebase'
 import Logo from '@/components/Logo'
-import { IconSmartphone } from '@/components/icons'
-import HostCard from '@/components/HostCard'
+import HomeCards from '@/components/HomeCards'
 
 export default function Home() {
   return (
@@ -22,21 +20,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="grid w-full items-start gap-4 sm:grid-cols-2">
-        <HostCard />
-
-        <Link
-          href="/display"
-          className="group rounded-2xl border border-gray-700 bg-gray-900 p-8 transition hover:border-cyan-500"
-        >
-          <IconSmartphone size={32} className="text-cyan-400" />
-          <h2 className="mt-3 text-xl font-semibold group-hover:text-cyan-400">Join as display</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            The phone that goes into the teleprompter rig. Enter the 4-letter code, calibrate,
-            roll.
-          </p>
-        </Link>
-      </div>
+      <HomeCards configured={isFirebaseConfigured()} />
 
       <p className="text-xs text-gray-600">
         No login. Sessions live under their 4-letter code — share the code to co-host.
