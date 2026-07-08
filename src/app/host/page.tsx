@@ -307,7 +307,7 @@ function ControlRoom({ code }: { code: string }) {
   // --- layout ---------------------------------------------------------------
 
   return (
-    <main className="mx-auto max-w-7xl p-3 pb-28 sm:p-4 lg:pb-4">
+    <main className="mx-auto max-w-7xl p-3 pb-40 sm:p-4 lg:pb-4">
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-3 sm:px-4">
         <h1>
           <Logo className="h-6 w-auto sm:h-7" />
@@ -405,9 +405,9 @@ function ControlRoom({ code }: { code: string }) {
             onActiveSegment={onActiveSegment}
             onScrub={manualScroll}
           />
-          {/* Transport docks to the bottom of the screen on mobile so play/pause
-              is always reachable; inline in the column on desktop. */}
-          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:p-2">
+          {/* Transport docks full-width to the bottom of the screen on mobile so
+              play/pause is always reachable; inline in the column on desktop. */}
+          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40">
             <Transport
               playing={playback.playing}
               onPlayPause={playPause}
