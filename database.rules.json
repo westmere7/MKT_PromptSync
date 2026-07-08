@@ -1,0 +1,13 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "sessions": {
+      "$code": {
+        ".read": true,
+        ".write": "$code.matches(/^[A-Z]{4}$/)",
+        ".validate": "$code.matches(/^[A-Z]{4}$/)"
+      }
+    }
+  }
+}
