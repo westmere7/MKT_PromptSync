@@ -6,15 +6,21 @@ import { IconQr, IconX } from '@/components/icons'
 
 type Props = {
   code: string
+  connected: boolean
 }
 
-export default function QRConnect({ code }: Props) {
+export default function QRConnect({ code, connected }: Props) {
   const [open, setOpen] = useState(false)
   const [joinUrl, setJoinUrl] = useState('')
 
   useEffect(() => {
     setJoinUrl(`${window.location.origin}/display?code=${code}`)
   }, [code])
+
+  // The QR's job is done once a display connects — close it automatically.
+  useEffect(() => {
+    if (connected) setOpen(false)
+  }, [connected])
 
   // Close on Escape
   useEffect(() => {

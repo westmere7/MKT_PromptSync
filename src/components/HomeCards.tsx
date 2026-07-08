@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createSession, isValidCode } from '@/lib/session'
+import { createSession, isValidCode, sessionExists } from '@/lib/session'
 import { IconPlus, IconSliders, IconSmartphone, IconX } from '@/components/icons'
 
 const CARD = 'flex flex-col rounded-2xl border border-gray-700 bg-gray-900 p-8'
@@ -99,6 +99,8 @@ function JoinCodeModal({
   onSubmit: (code: string) => void
 }) {
   const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
   const valid = isValidCode(code)
 
   useEffect(() => {
@@ -107,8 +109,21 @@ function JoinCodeModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const submit = () => {
-    if (valid) onSubmit(code)
+  const submit = async () => {
+    if (!valid || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      if (await sessionExists(code)) {
+        onSubmit(code) // navigates; keep busy so the button can't fire twice
+      } else {
+        setError(`No session found for ${code}. Check the code on the host screen.`)
+        setBusy(false)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Connection failed')
+      setBusy(false)
+    }
   }
 
   return (
@@ -141,7 +156,10 @@ function JoinCodeModal({
 
         <input
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+          onChange={(e) => {
+            setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))
+            setError('')
+          }}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           maxLength={4}
           autoFocus
@@ -151,12 +169,14 @@ function JoinCodeModal({
           className="w-full rounded-xl border-2 border-gray-700 bg-gray-950 px-4 py-4 text-center font-mono text-4xl font-bold tracking-[0.35em] text-cyan-300 placeholder-gray-800 focus:border-cyan-500 focus:outline-none"
         />
 
+        {error && <p className="mt-3 text-center text-sm text-red-400">{error}</p>}
+
         <button
           onClick={submit}
-          disabled={!valid}
+          disabled={!valid || busy}
           className="mt-4 w-full rounded-xl bg-cyan-600 px-6 py-3 text-base font-semibold text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
         >
-          {role === 'host' ? 'Open host controls' : 'Open display'}
+          {busy ? 'Checking…' : role === 'host' ? 'Open host controls' : 'Open display'}
         </button>
       </div>
     </div>

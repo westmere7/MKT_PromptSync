@@ -326,7 +326,7 @@ function ControlRoom({ code }: { code: string }) {
           )}
         </button>
 
-        <QRConnect code={code} />
+        <QRConnect code={code} connected={connected} />
 
         <span
           className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs sm:text-sm ${
