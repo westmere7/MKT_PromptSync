@@ -11,8 +11,10 @@ type Props = {
   calibration: Calibration
   display: DisplayInfo | null
   now: () => number
-  onMeasure: (offsetsEm: number[]) => void
+  onMeasure: (offsetsEm: number[], totalEm: number) => void
   onActiveSegment: (index: number) => void
+  /** Manual scrubbing in em (positive = forward). Wheel + touch/mouse drag. */
+  onScrub: (deltaEm: number) => void
 }
 
 // Fallback phone viewport (landscape) when no display has joined yet
@@ -27,9 +29,17 @@ export default function PreviewPane({
   now,
   onMeasure,
   onActiveSegment,
+  onScrub,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
+  const draggingRef = useRef(false)
+  const lastYRef = useRef(0)
+
+  const device = display ?? FALLBACK
+  const scale = device.w > 0 && width > 0 ? width / device.w : 1
+  const fontPxPreview = settings.fontSize * scale
+  const height = device.w > 0 ? width * (device.h / device.w) : 0
 
   useEffect(() => {
     const el = containerRef.current
@@ -40,8 +50,34 @@ export default function PreviewPane({
     return () => observer.disconnect()
   }, [])
 
-  const device = display ?? FALLBACK
-  const height = device.w > 0 ? width * (device.h / device.w) : 0
+  // Wheel needs a non-passive listener to be able to preventDefault (so the
+  // page doesn't scroll while scrubbing the prompter).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || fontPxPreview <= 0) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      onScrub(e.deltaY / fontPxPreview)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [fontPxPreview, onScrub])
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    draggingRef.current = true
+    lastYRef.current = e.clientY
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!draggingRef.current || fontPxPreview <= 0) return
+    const dy = e.clientY - lastYRef.current
+    lastYRef.current = e.clientY
+    // Drag up (dy < 0) advances the script forward.
+    onScrub(-dy / fontPxPreview)
+  }
+  const endDrag = () => {
+    draggingRef.current = false
+  }
 
   return (
     <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
@@ -55,7 +91,14 @@ export default function PreviewPane({
             : `${FALLBACK.w}×${FALLBACK.h} (no display connected)`}
         </span>
       </div>
-      <div ref={containerRef} className="w-full overflow-hidden rounded-lg border border-gray-700">
+      <div
+        ref={containerRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className="w-full touch-none cursor-grab overflow-hidden rounded-lg border border-gray-700 active:cursor-grabbing"
+      >
         {width > 0 && height > 0 && (
           <PrompterCanvas
             segments={segments}
@@ -74,8 +117,8 @@ export default function PreviewPane({
         )}
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        The bright band is what the talent sees between the calibration bars. Text wraps exactly as
-        on the phone.
+        Drag or scroll here to scrub the prompter. The bright band is what the talent sees; text
+        wraps exactly as on the phone.
       </p>
     </section>
   )

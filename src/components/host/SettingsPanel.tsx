@@ -91,15 +91,29 @@ export default function SettingsPanel({ settings, onChange, onSpeedChange }: Pro
           </label>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.mirror}
-            onChange={(e) => onChange({ mirror: e.target.checked })}
-            className="h-4 w-4 accent-cyan-400"
-          />
-          Mirror text on phone (for semi-transparent mirror rigs)
-        </label>
+        <div>
+          <div className="mb-1.5 text-sm">Mirror on phone (for mirror rigs)</div>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.mirrorH}
+                onChange={(e) => onChange({ mirrorH: e.target.checked })}
+                className="h-4 w-4 accent-cyan-400"
+              />
+              Horizontal (left–right)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.mirrorV}
+                onChange={(e) => onChange({ mirrorV: e.target.checked })}
+                className="h-4 w-4 accent-cyan-400"
+              />
+              Vertical (up–down)
+            </label>
+          </div>
+        </div>
       </div>
     </section>
   )

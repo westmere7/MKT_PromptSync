@@ -9,6 +9,15 @@ import { useServerNow } from '@/hooks/useServerNow'
 import PrompterCanvas from '@/components/PrompterCanvas'
 import CalibrationView from '@/components/display/CalibrationView'
 import Logo from '@/components/Logo'
+import {
+  IconCrosshair,
+  IconExpand,
+  IconPause,
+  IconPlay,
+  IconRotateCw,
+  IconSliders,
+  IconX,
+} from '@/components/icons'
 
 export default function DisplayPage() {
   const [code, setCode] = useState<string | null>(null)
@@ -103,6 +112,14 @@ function CodeEntry({
       </button>
 
       {error && <p className="max-w-xs text-center text-sm text-red-400">{error}</p>}
+
+      <a
+        href="/host"
+        className="mt-4 flex items-center gap-2 rounded-lg border border-gray-800 px-4 py-2 text-sm text-gray-400 transition hover:border-gray-600 hover:text-gray-200"
+      >
+        <IconSliders size={16} />
+        Switch to host mode
+      </a>
     </main>
   )
 }
@@ -233,8 +250,8 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
       )}
 
       {isPortrait && (
-        <div className="pointer-events-none absolute inset-x-0 top-1/3 text-center text-gray-500">
-          <div className="text-4xl">📱↻</div>
+        <div className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center text-center text-gray-500">
+          <IconRotateCw size={40} />
           <p className="mt-2 text-sm">Rotate to landscape for the teleprompter rig</p>
         </div>
       )}
@@ -248,27 +265,28 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
           <span className="flex items-center gap-1.5 text-emerald-400">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" /> live
           </span>
-          <span className="text-gray-500">
-            {session.playback.playing ? '▶ rolling' : '⏸ paused'}
+          <span className="flex items-center gap-1.5 text-gray-500">
+            {session.playback.playing ? <IconPlay size={14} /> : <IconPause size={14} />}
+            {session.playback.playing ? 'rolling' : 'paused'}
           </span>
           <div className="ml-auto flex gap-2">
             <button
               onClick={goFullscreen}
-              className="rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-1.5"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-1.5"
             >
-              ⛶ Fullscreen
+              <IconExpand size={16} /> Fullscreen
             </button>
             <button
               onClick={() => update(ref(getDb(), sessionPath(code)), { mode: 'calibrate' })}
-              className="rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-1.5"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-1.5"
             >
-              🎯 Calibrate
+              <IconCrosshair size={16} /> Calibrate
             </button>
             <button
               onClick={onExit}
-              className="rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-1.5 text-red-400"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-1.5 text-red-400"
             >
-              Exit
+              <IconX size={16} /> Exit
             </button>
           </div>
         </div>

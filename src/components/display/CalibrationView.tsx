@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ref, update } from 'firebase/database'
 import { getDb } from '@/lib/firebase'
 import { sessionPath } from '@/lib/session'
+import { IconCheck, IconMoveVertical } from '@/components/icons'
 import type { Calibration, Settings } from '@/lib/types'
 
 type Props = {
@@ -119,9 +120,9 @@ export default function CalibrationView({ code, calibration, settings, sampleTex
 
       <button
         onClick={save}
-        className="absolute bottom-4 right-4 z-30 rounded-xl bg-cyan-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition active:bg-cyan-500"
+        className="absolute bottom-4 right-4 z-30 flex items-center gap-2 rounded-xl bg-cyan-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition active:bg-cyan-500"
       >
-        ✓ Save calibration
+        <IconCheck size={20} /> Save calibration
       </button>
     </div>
   )
@@ -138,8 +139,8 @@ function DragBar({ label, y, onGrab }: { label: string; y: number; onGrab: () =>
       }}
     >
       <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-cyan-400" />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400 px-4 py-1.5 text-xs font-bold text-black">
-        ⇕ {label}
+      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-cyan-400 px-4 py-1.5 text-xs font-bold text-black">
+        <IconMoveVertical size={14} /> {label}
       </div>
     </div>
   )

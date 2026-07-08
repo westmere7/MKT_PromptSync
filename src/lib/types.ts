@@ -18,8 +18,10 @@ export type Settings = {
   speed: number
   lineHeight: number
   fontFamily: string
-  /** Flip horizontally for the semi-transparent mirror */
-  mirror: boolean
+  /** Flip horizontally (left-right) for a beam-splitter mirror */
+  mirrorH: boolean
+  /** Flip vertically (up-down) for overhead / periscope mirror rigs */
+  mirrorV: boolean
   highlightColor: string
 }
 
@@ -75,7 +77,8 @@ export const DEFAULT_SETTINGS: Settings = {
   speed: 1.2,
   lineHeight: 1.4,
   fontFamily: 'Arial',
-  mirror: false,
+  mirrorH: false,
+  mirrorV: false,
   highlightColor: '#ffd60a',
 }
 

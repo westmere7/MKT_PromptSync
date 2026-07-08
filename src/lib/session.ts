@@ -25,11 +25,14 @@ export function isValidCode(code: string): boolean {
 const SAMPLE_SCRIPT = `# Intro
 Welcome to RMIT PromptSync. This is your sample script. Replace it with your own from the host panel.
 
-# Segment 2
+# Control
+You can control the scroll, scrolling speed, font size and other specs live from the host.
+
+# Main script
 Each line starting with a hash sign begins a new segment. Segments can be jumped to and highlighted on the fly from the host device.
 
-# Outro
-Thanks for watching, and don't forget to calibrate the display before the first take.`
+# Outtro
+Thanks for watching, and don't forget to calibrate the display before the first take. Danh out.`
 
 /**
  * Parse a raw script into segments.

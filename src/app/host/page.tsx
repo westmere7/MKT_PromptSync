@@ -17,6 +17,7 @@ import Transport from '@/components/host/Transport'
 import PreviewPane from '@/components/host/PreviewPane'
 import QRConnect from '@/components/host/QRConnect'
 import Logo from '@/components/Logo'
+import { IconCheck, IconCopy, IconCrosshair, IconPlus, IconStop } from '@/components/icons'
 
 export default function HostPage() {
   return (
@@ -67,9 +68,9 @@ function NewSessionScreen() {
       <button
         onClick={startNew}
         disabled={busy || !isFirebaseConfigured()}
-        className="w-full rounded-xl bg-cyan-600 px-6 py-4 text-lg font-semibold text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-4 text-lg font-semibold text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
       >
-        {busy ? 'Creating…' : '➕ New session'}
+        {busy ? 'Creating…' : (<><IconPlus size={20} /> New session</>)}
       </button>
 
       <div className="flex w-full items-center gap-3 text-xs text-gray-600">
@@ -104,6 +105,7 @@ function ControlRoom({ code }: { code: string }) {
   const session = useSessionData(code)
   const now = useServerNow()
   const segmentOffsetsRef = useRef<number[]>([])
+  const totalEmRef = useRef(0)
   const [activeSegment, setActiveSegment] = useState(-1)
   const [copied, setCopied] = useState(false)
 
@@ -113,8 +115,9 @@ function ControlRoom({ code }: { code: string }) {
     [base]
   )
 
-  const onMeasure = useCallback((offsets: number[]) => {
+  const onMeasure = useCallback((offsets: number[], totalEm: number) => {
     segmentOffsetsRef.current = offsets
+    totalEmRef.current = totalEm
   }, [])
   const onActiveSegment = useCallback((i: number) => setActiveSegment(i), [])
 
@@ -154,6 +157,30 @@ function ControlRoom({ code }: { code: string }) {
 
   const toStart = () =>
     patch({ 'playback/anchorEm': 0, 'playback/anchorTime': now(), 'playback/segmentIndex': -1 })
+
+  const toEnd = () => {
+    // Land the final line at the top of the reading band, playback paused.
+    const end = Math.max(0, totalEmRef.current - settings.lineHeight)
+    patch({
+      'playback/playing': false,
+      'playback/anchorEm': end,
+      'playback/anchorTime': now(),
+      'playback/segmentIndex': segments.length - 1,
+    })
+  }
+
+  // Manual scrubbing from the preview (mouse wheel / touch drag). Freezes
+  // playback and moves the shared anchor so the phone follows exactly.
+  const manualScroll = (deltaEm: number) => {
+    const pos = currentPos()
+    const end = totalEmRef.current > 0 ? totalEmRef.current : Infinity
+    const next = Math.min(end, Math.max(0, pos + deltaEm))
+    patch({
+      'playback/playing': false,
+      'playback/anchorEm': next,
+      'playback/anchorTime': now(),
+    })
+  }
 
   const nudge = (seconds: number) => {
     const deltaEm = (settings.speed > 0 ? settings.speed : 1) * seconds
@@ -248,10 +275,17 @@ function ControlRoom({ code }: { code: string }) {
         <button
           onClick={copyCode}
           title="Copy session code"
-          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 font-mono text-xl font-bold tracking-[0.25em] text-cyan-300 transition hover:border-cyan-500 sm:text-2xl sm:tracking-[0.3em]"
+          className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 font-mono text-xl font-bold tracking-[0.25em] text-cyan-300 transition hover:border-cyan-500 sm:text-2xl sm:tracking-[0.3em]"
         >
-          {copied ? '✓ copied' : code}
+          {code}
+          {copied ? (
+            <IconCheck size={18} className="text-emerald-400" />
+          ) : (
+            <IconCopy size={16} className="text-gray-500" />
+          )}
         </button>
+
+        <QRConnect code={code} />
 
         <span
           className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs sm:text-sm ${
@@ -274,13 +308,21 @@ function ControlRoom({ code }: { code: string }) {
           </span>
           <button
             onClick={toggleCalibrationMode}
-            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none ${
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none ${
               mode === 'calibrate'
                 ? 'bg-amber-600 text-white hover:bg-amber-500'
                 : 'border border-gray-700 bg-gray-950 hover:border-amber-500'
             }`}
           >
-            {mode === 'calibrate' ? '⏹ End calibration' : '🎯 Calibrate phone'}
+            {mode === 'calibrate' ? (
+              <>
+                <IconStop size={16} /> End calibration
+              </>
+            ) : (
+              <>
+                <IconCrosshair size={16} /> Calibrate phone
+              </>
+            )}
           </button>
         </div>
       </header>
@@ -311,7 +353,6 @@ function ControlRoom({ code }: { code: string }) {
 
         {/* Preview + settings — first on mobile, right column on desktop */}
         <div className="order-1 space-y-4 lg:order-2 lg:w-1/2">
-          <QRConnect code={code} connected={connected} />
           <PreviewPane
             segments={segments}
             settings={settings}
@@ -321,6 +362,7 @@ function ControlRoom({ code }: { code: string }) {
             now={now}
             onMeasure={onMeasure}
             onActiveSegment={onActiveSegment}
+            onScrub={manualScroll}
           />
           {/* Transport docks to the bottom of the screen on mobile so play/pause
               is always reachable; inline in the column on desktop. */}
@@ -329,6 +371,7 @@ function ControlRoom({ code }: { code: string }) {
               playing={playback.playing}
               onPlayPause={playPause}
               onToStart={toStart}
+              onToEnd={toEnd}
               onNudge={nudge}
             />
           </div>

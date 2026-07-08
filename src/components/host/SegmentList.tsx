@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { splitIntoPieces } from '@/lib/highlight'
+import { IconChevronDown, IconChevronRight, IconHighlighter } from '@/components/icons'
 import type { Highlight, Segment } from '@/lib/types'
 
 type Props = {
@@ -55,8 +56,9 @@ export default function SegmentList({
                     onClick={() => setExpanded(isOpen ? null : i)}
                     className="px-3 py-3 text-gray-500 hover:text-gray-300"
                     title={isOpen ? 'Collapse' : 'Expand to highlight text'}
+                    aria-label={isOpen ? 'Collapse' : 'Expand to highlight text'}
                   >
-                    {isOpen ? '▾' : '▸'}
+                    {isOpen ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
                   </button>
                   <button
                     onClick={() => onJump(i)}
@@ -201,9 +203,10 @@ function HighlightableText({
         onMouseDown={(e) => e.preventDefault()}
         onClick={apply}
         disabled={!hasPending}
-        className="mt-2 rounded-md bg-cyan-600 px-3 py-2 text-xs font-medium text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
+        className="mt-2 flex items-center gap-1.5 rounded-md bg-cyan-600 px-3 py-2 text-xs font-medium text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
       >
-        ＋ Highlight selected text
+        <IconHighlighter size={15} />
+        Highlight selected text
       </button>
     </div>
   )

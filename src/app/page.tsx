@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { isFirebaseConfigured } from '@/lib/firebase'
 import Logo from '@/components/Logo'
+import { IconSliders, IconSmartphone } from '@/components/icons'
 
 export default function Home() {
   return (
@@ -25,7 +26,7 @@ export default function Home() {
           href="/host"
           className="group rounded-2xl border border-gray-700 bg-gray-900 p-8 transition hover:border-cyan-500"
         >
-          <div className="text-3xl">🎛️</div>
+          <IconSliders size={32} className="text-cyan-400" />
           <h2 className="mt-3 text-xl font-semibold group-hover:text-cyan-400">Host a session</h2>
           <p className="mt-1 text-sm text-gray-400">
             Desktop or second phone. Load the script, control speed, size, segments and highlights
@@ -37,7 +38,7 @@ export default function Home() {
           href="/display"
           className="group rounded-2xl border border-gray-700 bg-gray-900 p-8 transition hover:border-cyan-500"
         >
-          <div className="text-3xl">📱</div>
+          <IconSmartphone size={32} className="text-cyan-400" />
           <h2 className="mt-3 text-xl font-semibold group-hover:text-cyan-400">Join as display</h2>
           <p className="mt-1 text-sm text-gray-400">
             The phone that goes into the teleprompter rig. Enter the 4-letter code, calibrate,

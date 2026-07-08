@@ -20,8 +20,8 @@ type Props = {
   applyMirror: boolean
   /** 1 = opaque mask outside the calibrated band (phone), <1 = dimmed (preview) */
   maskOpacity: number
-  /** Reports each segment's scroll offset in em after layout (used for jumps) */
-  onMeasure?: (offsetsEm: number[]) => void
+  /** Reports segment scroll offsets and total content height (em) after layout */
+  onMeasure?: (offsetsEm: number[], totalEm: number) => void
   /** Reports which segment currently sits at the top of the band */
   onActiveSegment?: (index: number) => void
 }
@@ -60,7 +60,7 @@ export default function PrompterCanvas({
       offsets.push(child.offsetTop / fontPx)
     })
     offsetsRef.current = offsets
-    onMeasure?.(offsets)
+    onMeasure?.(offsets, el.scrollHeight / fontPx)
   }, [segments, fontPx, width, settings.lineHeight, settings.fontFamily, onMeasure])
 
   // Animation loop: everyone computes the same position from the shared playback anchor
@@ -92,13 +92,17 @@ export default function PrompterCanvas({
 
   const sidePad = width * SIDE_PADDING_FRACTION
 
+  const sx = applyMirror && settings.mirrorH ? -1 : 1
+  const sy = applyMirror && settings.mirrorV ? -1 : 1
+  const mirrorTransform = sx === 1 && sy === 1 ? undefined : `scale(${sx}, ${sy})`
+
   return (
     <div
-      className="relative overflow-hidden bg-black"
+      className="relative select-none overflow-hidden bg-black [-webkit-touch-callout:none]"
       style={{
         width,
         height,
-        transform: applyMirror && settings.mirror ? 'scaleX(-1)' : undefined,
+        transform: mirrorTransform,
       }}
     >
       <div
