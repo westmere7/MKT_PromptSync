@@ -19,15 +19,32 @@ export default function ScriptPanel({ script, onApply }: Props) {
 
   return (
     <section className="flex flex-col rounded-xl border border-gray-800 bg-gray-900 p-4">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Script</h2>
-        <button
-          onClick={() => onApply(draft)}
-          disabled={!dirty}
-          className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
-        >
-          {dirty ? 'Apply script' : 'Applied'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const hasContent = script.trim() !== '' || draft.trim() !== ''
+              if (
+                !hasContent ||
+                window.confirm('Clear the entire script? This removes all segments and highlights.')
+              ) {
+                setDraft('')
+                onApply('')
+              }
+            }}
+            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition hover:border-red-500 hover:text-red-400"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() => onApply(draft)}
+            disabled={!dirty}
+            className="rounded-md bg-cyan-600 px-3 py-1.5 text-sm font-medium text-white transition enabled:hover:bg-cyan-500 disabled:opacity-40"
+          >
+            {dirty ? 'Apply script' : 'Applied'}
+          </button>
+        </div>
       </div>
       <p className="mb-2 text-xs text-gray-500">
         Start a line with <code className="text-gray-300"># Name</code> to begin a segment. Without

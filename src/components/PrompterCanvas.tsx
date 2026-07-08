@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { positionAt } from '@/lib/scroll'
+import { splitIntoPieces } from '@/lib/highlight'
 import type { Calibration, Playback, Segment, Settings } from '@/lib/types'
 
 type Props = {
@@ -122,7 +123,17 @@ export default function PrompterCanvas({
               color: seg.highlighted ? settings.highlightColor : undefined,
             }}
           >
-            {seg.text}
+            {seg.highlighted
+              ? seg.text
+              : splitIntoPieces(seg.text, seg.highlights).map((piece, pi) =>
+                  piece.highlighted ? (
+                    <span key={pi} style={{ color: settings.highlightColor }}>
+                      {piece.text}
+                    </span>
+                  ) : (
+                    <span key={pi}>{piece.text}</span>
+                  )
+                )}
           </div>
         ))}
       </div>

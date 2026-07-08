@@ -1,14 +1,13 @@
 import Link from 'next/link'
 import { isFirebaseConfigured } from '@/lib/firebase'
+import Logo from '@/components/Logo'
 
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-8 p-6">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight">
-          RMIT <span className="text-cyan-400">PromptSync</span>
-        </h1>
-        <p className="mt-2 text-gray-400">
+        <Logo className="mx-auto h-12 w-auto sm:h-14" />
+        <p className="mt-4 text-gray-400">
           Remote-controlled teleprompter. Host on a desktop, display on a phone, live-synced.
         </p>
       </div>

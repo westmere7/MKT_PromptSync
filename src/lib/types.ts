@@ -1,8 +1,14 @@
+/** A highlighted character range within a segment's text, [start, end). */
+export type Highlight = { start: number; end: number }
+
 export type Segment = {
   id: string
   name: string
   text: string
+  /** Whole-segment highlight (colors all text) */
   highlighted?: boolean
+  /** Span highlights on selected text within the segment */
+  highlights?: Highlight[]
 }
 
 export type Settings = {

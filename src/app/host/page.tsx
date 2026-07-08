@@ -6,14 +6,17 @@ import { ref, update } from 'firebase/database'
 import { getDb, isFirebaseConfigured } from '@/lib/firebase'
 import { createSession, isValidCode, parseScript, sessionPath } from '@/lib/session'
 import { positionAt } from '@/lib/scroll'
+import { addHighlight, removeHighlight } from '@/lib/highlight'
 import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
-import type { Settings } from '@/lib/types'
+import type { Highlight, Settings } from '@/lib/types'
 import ScriptPanel from '@/components/host/ScriptPanel'
 import SegmentList from '@/components/host/SegmentList'
 import SettingsPanel from '@/components/host/SettingsPanel'
 import Transport from '@/components/host/Transport'
 import PreviewPane from '@/components/host/PreviewPane'
+import QRConnect from '@/components/host/QRConnect'
+import Logo from '@/components/Logo'
 
 export default function HostPage() {
   return (
@@ -52,7 +55,8 @@ function NewSessionScreen() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-2xl font-bold">Host a session</h1>
+      <Logo className="h-9 w-auto" />
+      <h1 className="text-xl font-semibold text-gray-300">Host a session</h1>
 
       {!isFirebaseConfigured() && (
         <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-200">
@@ -120,8 +124,8 @@ function ControlRoom({ code }: { code: string }) {
   if (session === null) {
     return (
       <CenterMessage>
-        Session <span className="font-mono text-cyan-400">{code}</span> was not found. It may have
-        expired or the code was mistyped.
+        Session <span className="font-mono text-cyan-400">{code}</span> was not found. Check the
+        code, or start a new session.
         <a href="/host" className="mt-4 block text-cyan-400 underline">
           Start a new session
         </a>
@@ -175,6 +179,24 @@ function ControlRoom({ code }: { code: string }) {
     patch({ [`segments/${index}/highlighted`]: !seg.highlighted })
   }
 
+  const addSpanHighlight = (index: number, range: Highlight) => {
+    const seg = segments[index]
+    if (!seg) return
+    patch({ [`segments/${index}/highlights`]: addHighlight(seg.highlights, range, seg.text.length) })
+  }
+
+  const removeSpanHighlight = (index: number, range: Highlight) => {
+    const seg = segments[index]
+    if (!seg) return
+    patch({
+      [`segments/${index}/highlights`]: removeHighlight(seg.highlights, range, seg.text.length),
+    })
+  }
+
+  const clearSpanHighlights = (index: number) => {
+    patch({ [`segments/${index}/highlights`]: null })
+  }
+
   const changeSettings = (p: Partial<Settings>) => {
     const values: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(p)) values[`settings/${k}`] = v
@@ -217,25 +239,23 @@ function ControlRoom({ code }: { code: string }) {
   // --- layout ---------------------------------------------------------------
 
   return (
-    <main className="mx-auto max-w-7xl p-4">
-      <header className="mb-4 flex flex-wrap items-center gap-4 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-        <h1 className="text-lg font-bold">
-          RMIT <span className="text-cyan-400">PromptSync</span>
+    <main className="mx-auto max-w-7xl p-3 pb-28 sm:p-4 lg:pb-4">
+      <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-3 sm:px-4">
+        <h1>
+          <Logo className="h-6 w-auto sm:h-7" />
         </h1>
 
         <button
           onClick={copyCode}
           title="Copy session code"
-          className="rounded-lg border border-gray-700 bg-gray-950 px-4 py-1.5 font-mono text-2xl font-bold tracking-[0.3em] text-cyan-300 transition hover:border-cyan-500"
+          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 font-mono text-xl font-bold tracking-[0.25em] text-cyan-300 transition hover:border-cyan-500 sm:text-2xl sm:tracking-[0.3em]"
         >
           {copied ? '✓ copied' : code}
         </button>
 
         <span
-          className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm ${
-            connected
-              ? 'bg-emerald-500/10 text-emerald-400'
-              : 'bg-red-500/10 text-red-400'
+          className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs sm:text-sm ${
+            connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
           }`}
         >
           <span
@@ -245,16 +265,16 @@ function ControlRoom({ code }: { code: string }) {
           />
           {connected
             ? `${displayList.length} display${displayList.length > 1 ? 's' : ''} connected`
-            : 'No display connected'}
+            : 'No display'}
         </span>
 
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500">
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          <span className="hidden text-xs text-gray-500 sm:inline">
             Band {Math.round(calibration.top * 100)}–{Math.round(calibration.bottom * 100)}%
           </span>
           <button
             onClick={toggleCalibrationMode}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none ${
               mode === 'calibrate'
                 ? 'bg-amber-600 text-white hover:bg-amber-500'
                 : 'border border-gray-700 bg-gray-950 hover:border-amber-500'
@@ -273,8 +293,9 @@ function ControlRoom({ code }: { code: string }) {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        {/* Script + segments — second on mobile, left column on desktop */}
+        <div className="order-2 space-y-4 lg:order-1 lg:w-1/2">
           <ScriptPanel script={session.script ?? ''} onApply={applyScript} />
           <SegmentList
             segments={segments}
@@ -282,10 +303,15 @@ function ControlRoom({ code }: { code: string }) {
             highlightColor={settings.highlightColor}
             onJump={jumpToSegment}
             onToggleHighlight={toggleHighlight}
+            onAddHighlight={addSpanHighlight}
+            onRemoveHighlight={removeSpanHighlight}
+            onClearHighlights={clearSpanHighlights}
           />
         </div>
 
-        <div className="space-y-4">
+        {/* Preview + settings — first on mobile, right column on desktop */}
+        <div className="order-1 space-y-4 lg:order-2 lg:w-1/2">
+          <QRConnect code={code} connected={connected} />
           <PreviewPane
             segments={segments}
             settings={settings}
@@ -296,12 +322,16 @@ function ControlRoom({ code }: { code: string }) {
             onMeasure={onMeasure}
             onActiveSegment={onActiveSegment}
           />
-          <Transport
-            playing={playback.playing}
-            onPlayPause={playPause}
-            onToStart={toStart}
-            onNudge={nudge}
-          />
+          {/* Transport docks to the bottom of the screen on mobile so play/pause
+              is always reachable; inline in the column on desktop. */}
+          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:p-2">
+            <Transport
+              playing={playback.playing}
+              onPlayPause={playPause}
+              onToStart={toStart}
+              onNudge={nudge}
+            />
+          </div>
           <SettingsPanel settings={settings} onChange={changeSettings} onSpeedChange={changeSpeed} />
         </div>
       </div>

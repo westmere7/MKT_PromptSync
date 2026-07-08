@@ -8,42 +8,71 @@ import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
 import PrompterCanvas from '@/components/PrompterCanvas'
 import CalibrationView from '@/components/display/CalibrationView'
+import Logo from '@/components/Logo'
 
 export default function DisplayPage() {
   const [code, setCode] = useState<string | null>(null)
+  const [initialCode, setInitialCode] = useState('')
+
+  // Support QR/deep links: /display?code=CBHU pre-fills and auto-connects.
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('code')?.toUpperCase() ?? ''
+    if (isValidCode(param)) setInitialCode(param)
+  }, [])
+
   return code ? (
     <DisplayScreen code={code} onExit={() => setCode(null)} />
   ) : (
-    <CodeEntry onJoin={setCode} />
+    <CodeEntry initialCode={initialCode} onJoin={setCode} />
   )
 }
 
 // --- code entry --------------------------------------------------------------
 
-function CodeEntry({ onJoin }: { onJoin: (code: string) => void }) {
+function CodeEntry({
+  initialCode,
+  onJoin,
+}: {
+  initialCode: string
+  onJoin: (code: string) => void
+}) {
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const autoTried = useRef(false)
 
-  const join = async () => {
-    if (!isValidCode(value)) return
-    setBusy(true)
-    setError('')
-    try {
-      if (await sessionExists(value)) onJoin(value)
-      else setError(`No session found for ${value}. Check the code on the host screen.`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Connection failed')
-    } finally {
-      setBusy(false)
-    }
-  }
+  const join = useCallback(
+    async (raw?: string) => {
+      const target = (raw ?? value).toUpperCase()
+      if (!isValidCode(target)) return
+      setBusy(true)
+      setError('')
+      try {
+        if (await sessionExists(target)) onJoin(target)
+        else setError(`No session found for ${target}. Check the code on the host screen.`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Connection failed')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [value, onJoin]
+  )
+
+  // Prefill and auto-connect once when arriving via a QR/deep link
+  useEffect(() => {
+    if (!initialCode || autoTried.current) return
+    autoTried.current = true
+    setValue(initialCode)
+    join(initialCode)
+  }, [initialCode, join])
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black p-6">
-      <h1 className="text-2xl font-bold text-gray-200">
-        RMIT <span className="text-cyan-400">PromptSync</span> — Display
-      </h1>
+      <div className="flex flex-col items-center gap-2">
+        <Logo className="h-9 w-auto" />
+        <span className="text-sm font-medium uppercase tracking-[0.3em] text-gray-500">Display</span>
+      </div>
       <p className="text-center text-sm text-gray-500">
         Enter the 4-letter code shown on the host device
       </p>
@@ -66,7 +95,7 @@ function CodeEntry({ onJoin }: { onJoin: (code: string) => void }) {
       />
 
       <button
-        onClick={join}
+        onClick={() => join()}
         disabled={!isValidCode(value) || busy || !isFirebaseConfigured()}
         className="w-64 rounded-2xl bg-cyan-600 px-6 py-4 text-xl font-semibold text-white transition enabled:active:bg-cyan-500 disabled:opacity-40"
       >

@@ -7,9 +7,10 @@ between takes.
 
 ## How it works
 
-- **Host** opens `/host` → **New session** → gets a 4-letter code (e.g. `CBHU`).
-- **Phone** opens `/display`, enters the code → connected. The host header shows a green
-  "display connected" status.
+- **Host** opens `/host` → **New session** → gets a 4-letter code (e.g. `CBHU`) and a **QR code**.
+- **Phone** opens `/display` and either **scans the QR** (which deep-links to
+  `/display?code=CBHU` and auto-connects) or types the 4-letter code. The host header shows a
+  green "display connected" status.
 - **Calibration**: on first connect the phone starts in calibration mode. Drag the top and bottom
   bars so they frame exactly what is visible through the mirror, then tap **Save calibration**.
   The desktop preview then shows precisely the text band the talent can see.
@@ -17,6 +18,19 @@ between takes.
   segment jumps and per-segment highlights. All changes apply on the phone instantly.
 
 Anyone who opens `/host?code=XXXX` co-hosts the same session — no login, the code is the key.
+
+### Session persistence
+
+Session state (script, segments, settings, calibration, highlights) lives at `sessions/{code}` in
+RTDB and is **independent of any connection**. When every device disconnects, only the per-device
+presence entries under `displays/` are removed (via `onDisconnect`); the script and all settings
+remain, so reopening the same code resumes exactly where you left off.
+
+**Sessions never auto-expire** — a script stays until you remove it with the **Clear** button in
+the Script panel. There is no TTL and no world-readable list of sessions, so codes remain the only
+key. (Trade-off: sessions that are created and never cleared accumulate in the database. For an
+internal tool this is negligible; if you ever want automatic cleanup, add a scheduled Cloud
+Function that deletes old sessions by `createdAt`.)
 
 ### Sync model
 
@@ -63,14 +77,16 @@ them, so for real shoots use the deployed URL.
 ### 3. Deploy (Vercel)
 
 Import the GitHub repo in Vercel, add the same `NEXT_PUBLIC_FIREBASE_*` variables under
-**Project → Settings → Environment Variables**, deploy. No other configuration needed.
+**Project → Settings → Environment Variables**, deploy. No other configuration needed. The QR
+codes automatically use the deployed origin, so scanning them opens the deployed `/display` page.
 
 ## Data model (`sessions/{CODE}` in RTDB)
 
 ```
+createdAt    server timestamp
 mode         'calibrate' | 'prompt'
 script       raw script text
-segments[]   { id, name, text, highlighted? }        — parsed from the script
+segments[]   { id, name, text, highlighted?, highlights?[{start,end}] }  — parsed from the script
 settings     { fontSize(px), speed(em/s), lineHeight, fontFamily, mirror, highlightColor }
 playback     { playing, anchorEm, anchorTime, segmentIndex }
 calibration  { top, bottom }                          — fractions of the phone screen height
@@ -89,7 +105,8 @@ Without any # headings, each blank-line-separated paragraph becomes its own segm
 
 ## Known limits / roadmap
 
-- Sessions are never cleaned up — add a TTL cleanup (scheduled function or on-create sweep).
+- Sessions never auto-expire; they persist until cleared manually. Add a scheduled cleanup job if
+  you want old sessions reclaimed automatically.
 - Rules are open to anyone who knows/guesses a code; fine for internal use, add App Check or
   auth if the URL becomes public.
 - No countdown before roll (3-2-1) yet.

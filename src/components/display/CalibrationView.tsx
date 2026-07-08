@@ -119,7 +119,7 @@ export default function CalibrationView({ code, calibration, settings, sampleTex
 
       <button
         onClick={save}
-        className="absolute bottom-4 right-4 rounded-xl bg-cyan-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition active:bg-cyan-500"
+        className="absolute bottom-4 right-4 z-30 rounded-xl bg-cyan-600 px-6 py-3 text-base font-semibold text-white shadow-lg transition active:bg-cyan-500"
       >
         ✓ Save calibration
       </button>
