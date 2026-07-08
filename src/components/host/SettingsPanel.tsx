@@ -73,8 +73,8 @@ export default function SettingsPanel({ settings, onChange, onSpeedChange }: Pro
               className="w-full rounded-md border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm"
             >
               {FONT_OPTIONS.map((f) => (
-                <option key={f} value={f}>
-                  {f}
+                <option key={f.value} value={f.value}>
+                  {f.label}
                 </option>
               ))}
             </select>

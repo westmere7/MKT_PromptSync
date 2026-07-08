@@ -67,21 +67,24 @@ export type SessionData = {
 /** Sessions idle longer than this are deleted when next opened (1 week). */
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
+/**
+ * Font choices as cross-platform stacks. Each ends in a generic family
+ * (sans-serif / serif / monospace) so it renders — and visibly differs — on
+ * phones too, where named desktop fonts (Arial, Tahoma, …) are often absent
+ * and would silently fall back to the same system default.
+ */
 export const FONT_OPTIONS = [
-  'Arial',
-  'Verdana',
-  'Tahoma',
-  'Trebuchet MS',
-  'Georgia',
-  'Times New Roman',
-  'Courier New',
+  { label: 'Sans-serif', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Serif', value: "Georgia, 'Times New Roman', Times, serif" },
+  { label: 'Monospace', value: "'Courier New', ui-monospace, monospace" },
+  { label: 'System', value: 'system-ui, -apple-system, sans-serif' },
 ] as const
 
 export const DEFAULT_SETTINGS: Settings = {
   fontSize: 48,
   speed: 1.2,
   lineHeight: 1.4,
-  fontFamily: 'Arial',
+  fontFamily: 'Arial, Helvetica, sans-serif',
   mirrorH: false,
   mirrorV: false,
   highlightColor: '#ffd60a',
