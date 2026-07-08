@@ -20,6 +20,9 @@ type Props = {
 // Fallback phone viewport (landscape) when no display has joined yet
 const FALLBACK = { w: 844, h: 390 }
 
+// Damping for mouse-wheel scrubbing (lower = slower/finer)
+const WHEEL_SENSITIVITY = 0.25
+
 export default function PreviewPane({
   segments,
   settings,
@@ -57,7 +60,7 @@ export default function PreviewPane({
     if (!el || fontPxPreview <= 0) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      onScrub(e.deltaY / fontPxPreview)
+      onScrub((e.deltaY / fontPxPreview) * WHEEL_SENSITIVITY)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
