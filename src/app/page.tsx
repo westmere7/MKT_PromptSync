@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { isFirebaseConfigured } from '@/lib/firebase'
 import Logo from '@/components/Logo'
-import { IconSliders, IconSmartphone } from '@/components/icons'
+import { IconSmartphone } from '@/components/icons'
+import HostCard from '@/components/HostCard'
 
 export default function Home() {
   return (
@@ -21,18 +22,8 @@ export default function Home() {
         </div>
       )}
 
-      <div className="grid w-full gap-4 sm:grid-cols-2">
-        <Link
-          href="/host"
-          className="group rounded-2xl border border-gray-700 bg-gray-900 p-8 transition hover:border-cyan-500"
-        >
-          <IconSliders size={32} className="text-cyan-400" />
-          <h2 className="mt-3 text-xl font-semibold group-hover:text-cyan-400">Host a session</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Desktop or second phone. Load the script, control speed, size, segments and highlights
-            live.
-          </p>
-        </Link>
+      <div className="grid w-full items-start gap-4 sm:grid-cols-2">
+        <HostCard />
 
         <Link
           href="/display"

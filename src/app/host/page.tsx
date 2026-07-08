@@ -1,14 +1,22 @@
 'use client'
 
-import { Suspense, useCallback, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ref, update } from 'firebase/database'
+import { ref, serverTimestamp, update } from 'firebase/database'
 import { getDb, isFirebaseConfigured } from '@/lib/firebase'
-import { createSession, isValidCode, parseScript, sessionPath } from '@/lib/session'
+import {
+  createSession,
+  deleteSession,
+  isSessionStale,
+  isValidCode,
+  parseScript,
+  sessionPath,
+} from '@/lib/session'
 import { positionAt } from '@/lib/scroll'
 import { addHighlight, removeHighlight } from '@/lib/highlight'
 import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
+import { useHeartbeat } from '@/hooks/useHeartbeat'
 import type { Highlight, Settings } from '@/lib/types'
 import ScriptPanel from '@/components/host/ScriptPanel'
 import SegmentList from '@/components/host/SegmentList'
@@ -106,29 +114,52 @@ function ControlRoom({ code }: { code: string }) {
   const now = useServerNow()
   const segmentOffsetsRef = useRef<number[]>([])
   const totalEmRef = useRef(0)
+  const [totalEm, setTotalEm] = useState(0)
   const [activeSegment, setActiveSegment] = useState(-1)
   const [copied, setCopied] = useState(false)
+  const [expired, setExpired] = useState(false)
+  const staleChecked = useRef(false)
 
   const base = sessionPath(code)
+  // Every write also refreshes lastActive, so an actively controlled session
+  // never looks idle to the 1-week expiry check.
   const patch = useCallback(
-    (values: Record<string, unknown>) => update(ref(getDb(), base), values),
+    (values: Record<string, unknown>) =>
+      update(ref(getDb(), base), { ...values, lastActive: serverTimestamp() }),
     [base]
   )
 
-  const onMeasure = useCallback((offsets: number[], totalEm: number) => {
+  // On the first loaded snapshot, delete the session if it has been idle past
+  // the TTL (1 week), then show it as expired.
+  useEffect(() => {
+    if (!session || staleChecked.current) return
+    staleChecked.current = true
+    if (isSessionStale(session)) {
+      setExpired(true)
+      deleteSession(code).catch(() => {})
+    }
+  }, [session, code])
+
+  // Heartbeat keeps the session alive while this host is open. Never touch a
+  // stale session — that would resurrect it as a partial "ghost" node.
+  useHeartbeat(session && !expired && !isSessionStale(session) ? code : null)
+
+  const onMeasure = useCallback((offsets: number[], total: number) => {
     segmentOffsetsRef.current = offsets
-    totalEmRef.current = totalEm
+    totalEmRef.current = total
+    setTotalEm(total)
   }, [])
   const onActiveSegment = useCallback((i: number) => setActiveSegment(i), [])
 
   if (session === undefined) {
     return <CenterMessage>Loading session {code}…</CenterMessage>
   }
-  if (session === null) {
+  if (session === null || expired) {
     return (
       <CenterMessage>
-        Session <span className="font-mono text-cyan-400">{code}</span> was not found. Check the
-        code, or start a new session.
+        Session <span className="font-mono text-cyan-400">{code}</span>{' '}
+        {expired ? 'expired after a week of inactivity.' : 'was not found.'} Start a new session to
+        continue.
         <a href="/host" className="mt-4 block text-cyan-400 underline">
           Start a new session
         </a>
@@ -178,6 +209,16 @@ function ControlRoom({ code }: { code: string }) {
     patch({
       'playback/playing': false,
       'playback/anchorEm': next,
+      'playback/anchorTime': now(),
+    })
+  }
+
+  // Scrub slider: jump to an absolute position, paused.
+  const scrubTo = (posEm: number) => {
+    const end = totalEmRef.current > 0 ? totalEmRef.current : Infinity
+    patch({
+      'playback/playing': false,
+      'playback/anchorEm': Math.min(end, Math.max(0, posEm)),
       'playback/anchorTime': now(),
     })
   }
@@ -373,6 +414,11 @@ function ControlRoom({ code }: { code: string }) {
               onToStart={toStart}
               onToEnd={toEnd}
               onNudge={nudge}
+              playback={playback}
+              speed={settings.speed}
+              totalEm={totalEm}
+              now={now}
+              onScrubTo={scrubTo}
             />
           </div>
           <SettingsPanel settings={settings} onChange={changeSettings} onSpeedChange={changeSpeed} />

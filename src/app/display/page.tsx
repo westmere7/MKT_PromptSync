@@ -3,9 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { onDisconnect, ref, remove, serverTimestamp, set, update } from 'firebase/database'
 import { getDb, isFirebaseConfigured } from '@/lib/firebase'
-import { isValidCode, sessionExists, sessionPath } from '@/lib/session'
+import {
+  deleteSession,
+  isSessionStale,
+  isValidCode,
+  sessionExists,
+  sessionPath,
+} from '@/lib/session'
 import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
+import { useHeartbeat } from '@/hooks/useHeartbeat'
+import { positionAt } from '@/lib/scroll'
 import PrompterCanvas from '@/components/PrompterCanvas'
 import CalibrationView from '@/components/display/CalibrationView'
 import Logo from '@/components/Logo'
@@ -133,6 +141,31 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
   const [overlay, setOverlay] = useState(true)
   const [isPortrait, setIsPortrait] = useState(false)
+  const [expired, setExpired] = useState(false)
+  const staleChecked = useRef(false)
+  const totalEmRef = useRef(0)
+  const scrubRef = useRef({
+    active: false,
+    moved: false,
+    startY: 0,
+    lastY: 0,
+    pos: 0,
+    lastWrite: 0,
+  })
+
+  // Delete + expire the session if it was left idle past the TTL (1 week).
+  useEffect(() => {
+    if (!session || staleChecked.current) return
+    staleChecked.current = true
+    if (isSessionStale(session)) {
+      setExpired(true)
+      deleteSession(code).catch(() => {})
+    }
+  }, [session, code])
+
+  // Heartbeat keeps the session alive while this display is connected. Never
+  // touch a stale session — that would resurrect it as a partial "ghost" node.
+  useHeartbeat(session && !expired && !isSessionStale(session) ? code : null)
 
   // Presence: register this display, clean up automatically on disconnect
   useEffect(() => {
@@ -208,10 +241,10 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
   if (session === undefined) {
     return <FullBlack>Connecting to {code}…</FullBlack>
   }
-  if (session === null) {
+  if (session === null || expired) {
     return (
       <FullBlack>
-        Session {code} has ended.
+        Session {code} {expired ? 'expired after a week of inactivity.' : 'has ended.'}
         <button onClick={onExit} className="mt-4 block w-full text-cyan-400 underline">
           Back
         </button>
@@ -232,8 +265,69 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
     )
   }
 
+  // Manual scrubbing by touch/drag on the phone. Pauses playback and writes the
+  // shared anchor so the host (and any other display) follows live. Position is
+  // accumulated locally so a fast drag stays accurate despite sync round-trips;
+  // writes are throttled while dragging, with a final precise write on release.
+  const writeAnchor = (posEm: number) => {
+    update(ref(getDb(), sessionPath(code)), {
+      'playback/playing': false,
+      'playback/anchorEm': posEm,
+      'playback/anchorTime': now(),
+      lastActive: serverTimestamp(),
+    })
+  }
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    scrubRef.current = {
+      active: true,
+      moved: false,
+      startY: e.clientY,
+      lastY: e.clientY,
+      pos: positionAt(session.playback, session.settings.speed, now()),
+      lastWrite: 0,
+    }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      /* synthetic or already-released pointer — non-fatal */
+    }
+  }
+  const onPointerMove = (e: React.PointerEvent) => {
+    const s = scrubRef.current
+    if (!s.active) return
+    const dy = e.clientY - s.lastY
+    s.lastY = e.clientY
+    if (Math.abs(e.clientY - s.startY) > 6) s.moved = true
+    if (!s.moved || dy === 0) return
+    const fontPx = session.settings.fontSize || 1
+    // Drag up = forward; invert when the image is vertically mirrored.
+    const deltaEm = (session.settings.mirrorV ? dy : -dy) / fontPx
+    const end = totalEmRef.current > 0 ? totalEmRef.current : Infinity
+    s.pos = Math.min(end, Math.max(0, s.pos + deltaEm))
+    const t = performance.now()
+    if (t - s.lastWrite > 40) {
+      s.lastWrite = t
+      writeAnchor(s.pos)
+    }
+  }
+  const onPointerUp = () => {
+    const s = scrubRef.current
+    if (s.active) {
+      if (s.moved) writeAnchor(s.pos)
+      else setOverlay((v) => !v)
+    }
+    s.active = false
+  }
+
   return (
-    <div className="fixed inset-0 bg-black" onClick={() => setOverlay((v) => !v)}>
+    <div
+      className="fixed inset-0 touch-none bg-black"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
       {viewport.w > 0 && (
         <PrompterCanvas
           segments={segments}
@@ -246,6 +340,7 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
           deviceWidth={viewport.w}
           applyMirror
           maskOpacity={1}
+          onMeasure={(_offsets, total) => (totalEmRef.current = total)}
         />
       )}
 
@@ -260,6 +355,8 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
         <div
           className="absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/90 to-transparent p-3 text-sm"
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
         >
           <span className="font-mono font-bold tracking-widest text-cyan-400">{code}</span>
           <span className="flex items-center gap-1.5 text-emerald-400">

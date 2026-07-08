@@ -53,6 +53,8 @@ export type SessionMode = 'calibrate' | 'prompt'
 
 export type SessionData = {
   createdAt: number
+  /** Server-clock ms of the last activity; refreshed by any connected device */
+  lastActive?: number
   mode: SessionMode
   script: string
   segments?: Segment[]
@@ -61,6 +63,9 @@ export type SessionData = {
   calibration: Calibration
   displays?: Record<string, DisplayInfo>
 }
+
+/** Sessions idle longer than this are deleted when next opened (1 week). */
+export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export const FONT_OPTIONS = [
   'Arial',

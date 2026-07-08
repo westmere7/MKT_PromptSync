@@ -9,6 +9,8 @@ import {
   IconSkipEnd,
   IconSkipStart,
 } from '@/components/icons'
+import ScrubSlider from '@/components/host/ScrubSlider'
+import type { Playback } from '@/lib/types'
 
 type Props = {
   playing: boolean
@@ -16,6 +18,12 @@ type Props = {
   onToStart: () => void
   onToEnd: () => void
   onNudge: (seconds: number) => void
+  // Scrub slider
+  playback: Playback
+  speed: number
+  totalEm: number
+  now: () => number
+  onScrubTo: (posEm: number) => void
 }
 
 function Btn({
@@ -39,7 +47,18 @@ function Btn({
   )
 }
 
-export default function Transport({ playing, onPlayPause, onToStart, onToEnd, onNudge }: Props) {
+export default function Transport({
+  playing,
+  onPlayPause,
+  onToStart,
+  onToEnd,
+  onNudge,
+  playback,
+  speed,
+  totalEm,
+  now,
+  onScrubTo,
+}: Props) {
   return (
     <section className="rounded-xl border border-gray-800 bg-gray-900 p-3 shadow-lg sm:p-4">
       <div className="flex items-center justify-center gap-1.5 sm:gap-2">
@@ -67,6 +86,13 @@ export default function Transport({ playing, onPlayPause, onToStart, onToEnd, on
           <IconSkipEnd />
         </Btn>
       </div>
+      <ScrubSlider
+        playback={playback}
+        speed={speed}
+        totalEm={totalEm}
+        now={now}
+        onScrubTo={onScrubTo}
+      />
     </section>
   )
 }

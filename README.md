@@ -14,23 +14,34 @@ between takes.
 - **Calibration**: on first connect the phone starts in calibration mode. Drag the top and bottom
   bars so they frame exactly what is visible through the mirror, then tap **Save calibration**.
   The desktop preview then shows precisely the text band the talent can see.
-- **Prompting**: the host controls play/pause, speed, font size/family, line height, mirror flip,
-  segment jumps and per-segment highlights. All changes apply on the phone instantly.
+- **Prompting**: the host controls play/pause, skip to start/end, ±5s nudge, speed, font
+  size/family, line height, mirror (horizontal/vertical), segment jumps and per-segment
+  highlights. All changes apply on the phone instantly.
+- **Scrubbing**: on the host, drag/wheel over the preview or drag the **scrub slider** to move to
+  any position (paused). On the phone, **drag the prompter up/down** to scrub — this live-syncs
+  back to the host and any co-hosts. A quick tap on the phone toggles the status overlay.
 
 Anyone who opens `/host?code=XXXX` co-hosts the same session — no login, the code is the key.
 
-### Session persistence
+### Session persistence & expiry
 
 Session state (script, segments, settings, calibration, highlights) lives at `sessions/{code}` in
 RTDB and is **independent of any connection**. When every device disconnects, only the per-device
 presence entries under `displays/` are removed (via `onDisconnect`); the script and all settings
-remain, so reopening the same code resumes exactly where you left off.
+remain, so reopening the same code within the week resumes exactly where you left off. The
+**Clear** button in the Script panel wipes the script deliberately.
 
-**Sessions never auto-expire** — a script stays until you remove it with the **Clear** button in
-the Script panel. There is no TTL and no world-readable list of sessions, so codes remain the only
-key. (Trade-off: sessions that are created and never cleared accumulate in the database. For an
-internal tool this is negligible; if you ever want automatic cleanup, add a scheduled Cloud
-Function that deletes old sessions by `createdAt`.)
+**Sessions auto-expire after 1 week of inactivity** (`SESSION_TTL_MS` in `src/lib/types.ts`):
+
+- Each session carries a `lastActive` timestamp. Every host action and a 5-minute heartbeat (host
+  **and** display) refresh it, so any session with someone connected never expires.
+- When a session is **opened** after being idle longer than the TTL, the app deletes it and shows
+  an "expired" message. This is a client-side, on-open check — there is no server timer and no
+  world-readable list of sessions, so codes remain the only key.
+- Consequence: a stale session is reclaimed the moment anyone reopens it. A session that is never
+  reopened stays in storage until someone does (harmless — each is a few KB). To reclaim those too
+  without waiting for a reopen, add a scheduled sweep (Vercel Cron or a Firebase Blaze Cloud
+  Function) that deletes sessions where `lastActive` is older than the TTL.
 
 ### Sync model
 
@@ -84,6 +95,7 @@ codes automatically use the deployed origin, so scanning them opens the deployed
 
 ```
 createdAt    server timestamp
+lastActive   server timestamp — refreshed by heartbeat; drives 1-week expiry
 mode         'calibrate' | 'prompt'
 script       raw script text
 segments[]   { id, name, text, highlighted?, highlights?[{start,end}] }  — parsed from the script
@@ -105,8 +117,9 @@ Without any # headings, each blank-line-separated paragraph becomes its own segm
 
 ## Known limits / roadmap
 
-- Sessions never auto-expire; they persist until cleared manually. Add a scheduled cleanup job if
-  you want old sessions reclaimed automatically.
+- Sessions auto-expire on reopen after 1 week idle; a session nobody reopens lingers in storage
+  (harmless, a few KB each). Add a scheduled sweep (Vercel Cron / Blaze function) to reclaim those
+  too.
 - Rules are open to anyone who knows/guesses a code; fine for internal use, add App Check or
   auth if the URL becomes public.
 - No countdown before roll (3-2-1) yet.

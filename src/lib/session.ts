@@ -1,9 +1,11 @@
-import { get, ref, serverTimestamp, set } from 'firebase/database'
+import { get, ref, remove, serverTimestamp, set, update } from 'firebase/database'
 import { getDb } from './firebase'
 import {
   DEFAULT_CALIBRATION,
   DEFAULT_PLAYBACK,
   DEFAULT_SETTINGS,
+  SESSION_TTL_MS,
+  type SessionData,
   type Segment,
 } from './types'
 
@@ -89,6 +91,7 @@ export async function createSession(): Promise<string> {
     if (snap.exists()) continue
     await set(r, {
       createdAt: serverTimestamp(),
+      lastActive: serverTimestamp(),
       mode: 'calibrate',
       script: SAMPLE_SCRIPT,
       segments: parseScript(SAMPLE_SCRIPT),
@@ -104,4 +107,20 @@ export async function createSession(): Promise<string> {
 export async function sessionExists(code: string): Promise<boolean> {
   const snap = await get(ref(getDb(), sessionPath(code)))
   return snap.exists()
+}
+
+/** Refresh a session's last-activity timestamp (heartbeat). */
+export async function touchSession(code: string): Promise<void> {
+  await update(ref(getDb(), sessionPath(code)), { lastActive: serverTimestamp() })
+}
+
+/** True if the session has been idle longer than the TTL. */
+export function isSessionStale(session: Pick<SessionData, 'lastActive' | 'createdAt'>): boolean {
+  const last = session.lastActive ?? session.createdAt ?? 0
+  return typeof last === 'number' && Date.now() - last > SESSION_TTL_MS
+}
+
+/** Delete a session outright (used when an idle session is reopened past TTL). */
+export async function deleteSession(code: string): Promise<void> {
+  await remove(ref(getDb(), sessionPath(code)))
 }
