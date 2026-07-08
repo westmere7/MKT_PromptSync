@@ -50,6 +50,9 @@ export default function PrompterCanvas({
   const fontPx = settings.fontSize * scale
   const bandTop = calibration.top * height
   const bandBottom = calibration.bottom * height
+  // Lead-in: blank space before the first line so, at position 0, the first
+  // line sits just below the canvas and scrolls up into the reading band.
+  const leadInPx = Math.max(0, height - bandTop)
 
   // Measure segment offsets (in em) whenever layout-affecting inputs change
   useLayoutEffect(() => {
@@ -61,7 +64,7 @@ export default function PrompterCanvas({
     })
     offsetsRef.current = offsets
     onMeasure?.(offsets, el.scrollHeight / fontPx)
-  }, [segments, fontPx, width, settings.lineHeight, settings.fontFamily, onMeasure])
+  }, [segments, fontPx, width, settings.lineHeight, settings.fontFamily, leadInPx, onMeasure])
 
   // Animation loop: everyone computes the same position from the shared playback anchor
   useEffect(() => {
@@ -117,6 +120,7 @@ export default function PrompterCanvas({
           color: '#ffffff',
         }}
       >
+        <div aria-hidden style={{ height: leadInPx }} />
         {segments.map((seg, i) => (
           <div
             key={seg.id ?? i}
