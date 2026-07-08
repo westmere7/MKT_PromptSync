@@ -8,7 +8,8 @@ export default function Home() {
       <div className="text-center">
         <Logo className="mx-auto h-12 w-auto sm:h-14" />
         <p className="mt-4 text-gray-400">
-          Remote-controlled teleprompter. Host on a desktop, display on a phone, live-synced.
+          Remote-controlled teleprompter. Host on any device, display on a phone, live-synced, full
+          control.
         </p>
       </div>
 

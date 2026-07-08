@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ref, update } from 'firebase/database'
 import { getDb } from '@/lib/firebase'
 import { sessionPath } from '@/lib/session'
-import { IconCheck, IconMoveVertical } from '@/components/icons'
+import { IconCheck, IconExpand, IconMoveVertical } from '@/components/icons'
 import type { Calibration, Settings } from '@/lib/types'
 
 type Props = {
@@ -24,6 +24,7 @@ export default function CalibrationView({ code, calibration, settings, sampleTex
   const dragging = useRef<'top' | 'bottom' | null>(null)
   const lastWrite = useRef(0)
   const [viewportH, setViewportH] = useState(0)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const measure = () => setViewportH(window.innerHeight)
@@ -31,6 +32,23 @@ export default function CalibrationView({ code, calibration, settings, sampleTex
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  // Calibration must happen at the real (fullscreen) dimensions, so gate the
+  // bars behind a fullscreen step. Skip the gate if we're already fullscreen.
+  useEffect(() => {
+    if (document.fullscreenElement) setReady(true)
+  }, [])
+
+  const enterAndCalibrate = async () => {
+    try {
+      await document.documentElement.requestFullscreen()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (screen.orientation as any)?.lock?.('landscape')
+    } catch {
+      /* fullscreen/orientation unsupported (e.g. iOS Safari) — calibrate anyway */
+    }
+    setReady(true)
+  }
 
   const writeCalibration = (t: number, b: number) =>
     update(ref(getDb(), sessionPath(code)), { 'calibration/top': t, 'calibration/bottom': b })
@@ -69,6 +87,30 @@ export default function CalibrationView({ code, calibration, settings, sampleTex
 
   const topPx = top * viewportH
   const bottomPx = bottom * viewportH
+
+  if (!ready) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black p-6 text-center">
+        <div className="max-w-sm">
+          <IconExpand size={40} className="mx-auto text-cyan-400" />
+          <h1 className="mt-4 text-xl font-semibold text-gray-100">Calibrate the display</h1>
+          <p className="mt-2 text-sm text-gray-400">
+            Go fullscreen first so the calibration matches exactly what the talent sees during the
+            take.
+          </p>
+          <button
+            onClick={enterAndCalibrate}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 px-6 py-4 text-base font-semibold text-white transition active:bg-cyan-500"
+          >
+            <IconExpand size={20} /> Enter fullscreen &amp; calibrate
+          </button>
+          <p className="mt-3 text-xs text-gray-600">
+            On iPhone, fullscreen may be unavailable — you can still calibrate.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
