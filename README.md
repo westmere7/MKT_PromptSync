@@ -123,6 +123,8 @@ Without any # headings, each blank-line-separated paragraph becomes its own segm
 - Rules are open to anyone who knows/guesses a code; fine for internal use, add App Check or
   auth if the URL becomes public.
 - No countdown before roll (3-2-1) yet.
-- iOS Safari does not support programmatic orientation lock — rotate the phone manually; wake
-  lock requires iOS 16.4+.
+- iOS Safari does not support programmatic orientation lock — rotate the phone manually.
+- Keeping the phone awake uses the Screen Wake Lock API (HTTPS / iOS 16.4+) and falls back to a
+  muted background video on plain-HTTP LAN. If neither works the display shows a "screen may sleep"
+  warning in the status overlay — disable the device's auto-lock / screen timeout for the shoot.
 - Speed is in lines/second (em-based), so it scales naturally with font size.

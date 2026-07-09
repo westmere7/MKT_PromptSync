@@ -13,6 +13,7 @@ import {
 import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
 import { useHeartbeat } from '@/hooks/useHeartbeat'
+import { useKeepAwake } from '@/hooks/useKeepAwake'
 import { positionAt } from '@/lib/scroll'
 import PrompterCanvas from '@/components/PrompterCanvas'
 import CalibrationView from '@/components/display/CalibrationView'
@@ -201,24 +202,10 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
     }
   }, [code])
 
-  // Keep the screen awake during takes
-  useEffect(() => {
-    let sentinel: WakeLockSentinel | null = null
-    const acquire = async () => {
-      try {
-        sentinel = await navigator.wakeLock?.request('screen')
-      } catch {
-        /* not supported or not allowed — non-fatal */
-      }
-    }
-    acquire()
-    const onVisible = () => document.visibilityState === 'visible' && acquire()
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      sentinel?.release().catch(() => {})
-    }
-  }, [])
+  // Keep the screen awake while the display is connected. Uses the Wake Lock
+  // API when available and falls back to a muted video on plain-HTTP LAN; null
+  // means neither worked and the operator should disable auto-lock manually.
+  const keepAwake = useKeepAwake()
 
   // Auto-hide the overlay
   useEffect(() => {
@@ -366,6 +353,14 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
             {session.playback.playing ? <IconPlay size={14} /> : <IconPause size={14} />}
             {session.playback.playing ? 'rolling' : 'paused'}
           </span>
+          {!keepAwake && (
+            <span
+              className="flex items-center gap-1.5 text-amber-400"
+              title="Couldn't keep the screen awake in this browser (needs HTTPS). Turn off auto-lock / screen timeout in your device settings for the shoot."
+            >
+              <span className="h-2 w-2 rounded-full bg-amber-400" /> screen may sleep
+            </span>
+          )}
           <div className="ml-auto flex gap-2">
             <button
               onClick={goFullscreen}
