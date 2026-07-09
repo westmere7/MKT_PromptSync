@@ -2,6 +2,7 @@ import { get, ref, remove, serverTimestamp, set, update } from 'firebase/databas
 import { getDb } from './firebase'
 import {
   DEFAULT_CALIBRATION,
+  DEFAULT_MARKERS,
   DEFAULT_PLAYBACK,
   DEFAULT_SETTINGS,
   SESSION_TTL_MS,
@@ -98,6 +99,7 @@ export async function createSession(): Promise<string> {
       settings: DEFAULT_SETTINGS,
       playback: DEFAULT_PLAYBACK,
       calibration: DEFAULT_CALIBRATION,
+      markers: DEFAULT_MARKERS,
     })
     return code
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { onDisconnect, ref, remove, serverTimestamp, set, update } from 'firebase/database'
 import { getDb, isFirebaseConfigured } from '@/lib/firebase'
 import {
@@ -14,7 +15,9 @@ import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
 import { useHeartbeat } from '@/hooks/useHeartbeat'
 import { useKeepAwake } from '@/hooks/useKeepAwake'
+import { useAutoFullscreen } from '@/hooks/useAutoFullscreen'
 import { positionAt } from '@/lib/scroll'
+import { DEFAULT_MARKERS } from '@/lib/types'
 import PrompterCanvas from '@/components/PrompterCanvas'
 import CalibrationView from '@/components/display/CalibrationView'
 import Logo from '@/components/Logo'
@@ -29,17 +32,23 @@ import {
 } from '@/components/icons'
 
 export default function DisplayPage() {
+  const router = useRouter()
   const [code, setCode] = useState<string | null>(null)
   const [initialCode, setInitialCode] = useState('')
+  // True when we arrived via a QR/deep link — used to auto-enter fullscreen.
+  const [fromQR, setFromQR] = useState(false)
 
   // Support QR/deep links: /display?code=CBHU pre-fills and auto-connects.
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get('code')?.toUpperCase() ?? ''
-    if (isValidCode(param)) setInitialCode(param)
+    if (isValidCode(param)) {
+      setInitialCode(param)
+      setFromQR(true)
+    }
   }, [])
 
   return code ? (
-    <DisplayScreen code={code} onExit={() => setCode(null)} />
+    <DisplayScreen code={code} autoFullscreen={fromQR} onExit={() => router.push('/')} />
   ) : (
     <CodeEntry initialCode={initialCode} onJoin={setCode} />
   )
@@ -165,7 +174,15 @@ function CodeEntry({
 
 // --- connected display -------------------------------------------------------
 
-function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
+function DisplayScreen({
+  code,
+  autoFullscreen,
+  onExit,
+}: {
+  code: string
+  autoFullscreen: boolean
+  onExit: () => void
+}) {
   const session = useSessionData(code)
   const now = useServerNow()
   const clientIdRef = useRef(`d-${Math.random().toString(36).slice(2, 10)}`)
@@ -197,6 +214,9 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
   // Heartbeat keeps the session alive while this display is connected. Never
   // touch a stale session — that would resurrect it as a partial "ghost" node.
   useHeartbeat(session && !expired && !isSessionStale(session) ? code : null)
+
+  // Arrived via QR: go fullscreen automatically (on first touch — see hook).
+  useAutoFullscreen(autoFullscreen)
 
   // Presence: register this display, clean up automatically on disconnect
   useEffect(() => {
@@ -271,6 +291,14 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
 
   const segments = session.segments ?? []
 
+  // In/out markers — the phone clamps its own scrubbing (and the canvas clamps
+  // auto-scroll) so it can never move past the host-set bounds.
+  const markers = session.markers ?? DEFAULT_MARKERS
+  const inEm = Math.max(0, markers.inEm ?? 0)
+  const outEm = markers.outEm ?? null
+  const boundsHi = () =>
+    outEm != null ? outEm : totalEmRef.current > 0 ? totalEmRef.current : Infinity
+
   if (session.mode === 'calibrate') {
     return (
       <CalibrationView
@@ -278,6 +306,7 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
         calibration={session.calibration}
         settings={session.settings}
         sampleText={segments[0]?.text ?? 'Sample text — load a script on the host device.'}
+        autoFullscreen={autoFullscreen}
       />
     )
   }
@@ -301,7 +330,10 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
       moved: false,
       startY: e.clientY,
       lastY: e.clientY,
-      pos: positionAt(session.playback, session.settings.speed, now()),
+      pos: Math.min(
+        boundsHi(),
+        Math.max(inEm, positionAt(session.playback, session.settings.speed, now()))
+      ),
       lastWrite: 0,
     }
     try {
@@ -320,8 +352,7 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
     const fontPx = session.settings.fontSize || 1
     // Drag up = forward; invert when the image is vertically mirrored.
     const deltaEm = (session.settings.mirrorV ? dy : -dy) / fontPx
-    const end = totalEmRef.current > 0 ? totalEmRef.current : Infinity
-    s.pos = Math.min(end, Math.max(0, s.pos + deltaEm))
+    s.pos = Math.min(boundsHi(), Math.max(inEm, s.pos + deltaEm))
     const t = performance.now()
     if (t - s.lastWrite > 40) {
       s.lastWrite = t
@@ -357,6 +388,8 @@ function DisplayScreen({ code, onExit }: { code: string; onExit: () => void }) {
           deviceWidth={viewport.w}
           applyMirror
           maskOpacity={1}
+          minEm={inEm}
+          maxEm={outEm ?? Infinity}
           onMeasure={(_offsets, total) => (totalEmRef.current = total)}
         />
       )}

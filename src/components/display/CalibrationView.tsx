@@ -12,19 +12,29 @@ type Props = {
   calibration: Calibration
   settings: Settings
   sampleText: string
+  /** Arrived via QR — skip the fullscreen gate (the display auto-fullscreens). */
+  autoFullscreen?: boolean
 }
 
 const MIN_GAP = 0.12
 const LIVE_WRITE_INTERVAL_MS = 150
 
-export default function CalibrationView({ code, calibration, settings, sampleText }: Props) {
+export default function CalibrationView({
+  code,
+  calibration,
+  settings,
+  sampleText,
+  autoFullscreen,
+}: Props) {
   const [top, setTop] = useState(calibration.top)
   const [bottom, setBottom] = useState(calibration.bottom)
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<'top' | 'bottom' | null>(null)
   const lastWrite = useRef(0)
   const [viewportH, setViewportH] = useState(0)
-  const [ready, setReady] = useState(false)
+  // When arriving via QR the display auto-enters fullscreen on first touch, so
+  // there's nothing to ask — show the calibration bars straight away.
+  const [ready, setReady] = useState(!!autoFullscreen)
 
   useEffect(() => {
     const measure = () => setViewportH(window.innerHeight)

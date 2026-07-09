@@ -11,6 +11,9 @@ type Props = {
   calibration: Calibration
   display: DisplayInfo | null
   now: () => number
+  /** In/out scroll bounds in em */
+  minEm: number
+  maxEm: number
   onMeasure: (offsetsEm: number[], totalEm: number) => void
   onActiveSegment: (index: number) => void
   /** Manual scrubbing in em (positive = forward). Wheel + touch/mouse drag. */
@@ -30,6 +33,8 @@ export default function PreviewPane({
   calibration,
   display,
   now,
+  minEm,
+  maxEm,
   onMeasure,
   onActiveSegment,
   onScrub,
@@ -114,6 +119,8 @@ export default function PreviewPane({
             deviceWidth={device.w}
             applyMirror={false}
             maskOpacity={0.82}
+            minEm={minEm}
+            maxEm={maxEm}
             onMeasure={onMeasure}
             onActiveSegment={onActiveSegment}
           />

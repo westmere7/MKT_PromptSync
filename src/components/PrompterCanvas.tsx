@@ -20,6 +20,9 @@ type Props = {
   applyMirror: boolean
   /** 1 = opaque mask outside the calibrated band (phone), <1 = dimmed (preview) */
   maskOpacity: number
+  /** Lower/upper scroll bounds in em (in/out markers). Clamps auto-scroll. */
+  minEm?: number
+  maxEm?: number
   /** Reports segment scroll offsets and total content height (em) after layout */
   onMeasure?: (offsetsEm: number[], totalEm: number) => void
   /** Reports which segment currently sits at the top of the band */
@@ -39,6 +42,8 @@ export default function PrompterCanvas({
   deviceWidth,
   applyMirror,
   maskOpacity,
+  minEm = 0,
+  maxEm = Infinity,
   onMeasure,
   onActiveSegment,
 }: Props) {
@@ -74,7 +79,7 @@ export default function PrompterCanvas({
     const tick = () => {
       const el = textRef.current
       if (el) {
-        const posEm = positionAt(playback, settings.speed, now())
+        const posEm = positionAt(playback, settings.speed, now(), minEm, maxEm)
         el.style.transform = `translateY(${bandTop - posEm * fontPx}px)`
 
         if (onActiveSegment) {
@@ -93,7 +98,7 @@ export default function PrompterCanvas({
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [playback, settings.speed, now, bandTop, fontPx, onActiveSegment])
+  }, [playback, settings.speed, now, bandTop, fontPx, minEm, maxEm, onActiveSegment])
 
   const sidePad = width * SIDE_PADDING_FRACTION
 

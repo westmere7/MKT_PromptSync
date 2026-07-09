@@ -12,12 +12,12 @@ import {
   parseScript,
   sessionPath,
 } from '@/lib/session'
-import { positionAt } from '@/lib/scroll'
+import { positionAt, resolveBounds } from '@/lib/scroll'
 import { addHighlight, removeHighlight } from '@/lib/highlight'
 import { useSessionData } from '@/hooks/useSessionData'
 import { useServerNow } from '@/hooks/useServerNow'
 import { useHeartbeat } from '@/hooks/useHeartbeat'
-import type { Highlight, Settings } from '@/lib/types'
+import { DEFAULT_MARKERS, type Highlight, type Markers, type Settings } from '@/lib/types'
 import ScriptPanel from '@/components/host/ScriptPanel'
 import SegmentList from '@/components/host/SegmentList'
 import SettingsPanel from '@/components/host/SettingsPanel'
@@ -168,6 +168,11 @@ function ControlRoom({ code }: { code: string }) {
   }
 
   const { settings, playback, calibration, mode } = session
+  const markers = session.markers ?? DEFAULT_MARKERS
+  // Bounds for the canvas clamp: the out marker (or unbounded) — kept off `total`
+  // so a not-yet-measured script doesn't momentarily clamp everything to 0.
+  const canvasMin = Math.max(0, markers.inEm ?? 0)
+  const canvasMax = markers.outEm ?? Infinity
   const segments = session.segments ?? []
   const displays = session.displays ?? {}
   const displayList = Object.values(displays)
@@ -175,7 +180,18 @@ function ControlRoom({ code }: { code: string }) {
 
   // --- control actions ------------------------------------------------------
 
-  const currentPos = () => positionAt(playback, settings.speed, now())
+  // All positions are clamped to the in/out markers. `bounds()` reads the live
+  // measured length, so a null out marker still resolves to the script end.
+  const bounds = () => resolveBounds(markers, totalEmRef.current)
+  const clampPos = (posEm: number) => {
+    const { lo, hi } = bounds()
+    return Math.min(hi, Math.max(lo, posEm))
+  }
+
+  const currentPos = () => {
+    const { lo, hi } = bounds()
+    return positionAt(playback, settings.speed, now(), lo, hi)
+  }
 
   const playPause = () => {
     const t = now()
@@ -187,11 +203,12 @@ function ControlRoom({ code }: { code: string }) {
   }
 
   const toStart = () =>
-    patch({ 'playback/anchorEm': 0, 'playback/anchorTime': now(), 'playback/segmentIndex': -1 })
+    patch({ 'playback/anchorEm': bounds().lo, 'playback/anchorTime': now(), 'playback/segmentIndex': -1 })
 
   const toEnd = () => {
-    // Land the final line at the top of the reading band, playback paused.
-    const end = Math.max(0, totalEmRef.current - settings.lineHeight)
+    // Land the final line at the top of the reading band (or the out marker),
+    // playback paused.
+    const end = clampPos(totalEmRef.current - settings.lineHeight)
     patch({
       'playback/playing': false,
       'playback/anchorEm': end,
@@ -203,22 +220,18 @@ function ControlRoom({ code }: { code: string }) {
   // Manual scrubbing from the preview (mouse wheel / touch drag). Freezes
   // playback and moves the shared anchor so the phone follows exactly.
   const manualScroll = (deltaEm: number) => {
-    const pos = currentPos()
-    const end = totalEmRef.current > 0 ? totalEmRef.current : Infinity
-    const next = Math.min(end, Math.max(0, pos + deltaEm))
     patch({
       'playback/playing': false,
-      'playback/anchorEm': next,
+      'playback/anchorEm': clampPos(currentPos() + deltaEm),
       'playback/anchorTime': now(),
     })
   }
 
   // Scrub slider: jump to an absolute position, paused.
   const scrubTo = (posEm: number) => {
-    const end = totalEmRef.current > 0 ? totalEmRef.current : Infinity
     patch({
       'playback/playing': false,
-      'playback/anchorEm': Math.min(end, Math.max(0, posEm)),
+      'playback/anchorEm': clampPos(posEm),
       'playback/anchorTime': now(),
     })
   }
@@ -226,7 +239,7 @@ function ControlRoom({ code }: { code: string }) {
   const nudge = (seconds: number) => {
     const deltaEm = (settings.speed > 0 ? settings.speed : 1) * seconds
     patch({
-      'playback/anchorEm': Math.max(0, currentPos() + deltaEm),
+      'playback/anchorEm': clampPos(currentPos() + deltaEm),
       'playback/anchorTime': now(),
     })
   }
@@ -235,10 +248,18 @@ function ControlRoom({ code }: { code: string }) {
     const offset = segmentOffsetsRef.current[index]
     if (offset === undefined) return
     patch({
-      'playback/anchorEm': offset,
+      'playback/anchorEm': clampPos(offset),
       'playback/anchorTime': now(),
       'playback/segmentIndex': index,
     })
+  }
+
+  // Adjust the in/out markers. A null outEm removes the bound (back to the end).
+  const setMarkers = (next: Partial<Markers>) => {
+    const values: Record<string, unknown> = {}
+    if ('inEm' in next) values['markers/inEm'] = next.inEm
+    if ('outEm' in next) values['markers/outEm'] = next.outEm
+    patch(values)
   }
 
   const toggleHighlight = (index: number) => {
@@ -288,6 +309,8 @@ function ControlRoom({ code }: { code: string }) {
       'playback/anchorTime': now(),
       'playback/playing': false,
       'playback/segmentIndex': -1,
+      // A new script invalidates the old em positions — clear the markers.
+      markers: DEFAULT_MARKERS,
     })
   }
 
@@ -401,6 +424,8 @@ function ControlRoom({ code }: { code: string }) {
             calibration={calibration}
             display={displayList[0] ?? null}
             now={now}
+            minEm={canvasMin}
+            maxEm={canvasMax}
             onMeasure={onMeasure}
             onActiveSegment={onActiveSegment}
             onScrub={manualScroll}
@@ -417,8 +442,10 @@ function ControlRoom({ code }: { code: string }) {
               playback={playback}
               speed={settings.speed}
               totalEm={totalEm}
+              markers={markers}
               now={now}
               onScrubTo={scrubTo}
+              onSetMarkers={setMarkers}
             />
           </div>
           <SettingsPanel settings={settings} onChange={changeSettings} onSpeedChange={changeSpeed} />

@@ -10,7 +10,7 @@ import {
   IconSkipStart,
 } from '@/components/icons'
 import ScrubSlider from '@/components/host/ScrubSlider'
-import type { Playback } from '@/lib/types'
+import type { Markers, Playback } from '@/lib/types'
 
 type Props = {
   playing: boolean
@@ -22,8 +22,10 @@ type Props = {
   playback: Playback
   speed: number
   totalEm: number
+  markers: Markers
   now: () => number
   onScrubTo: (posEm: number) => void
+  onSetMarkers: (next: Partial<Markers>) => void
 }
 
 function Btn({
@@ -56,8 +58,10 @@ export default function Transport({
   playback,
   speed,
   totalEm,
+  markers,
   now,
   onScrubTo,
+  onSetMarkers,
 }: Props) {
   return (
     <section className="border-t border-gray-700 bg-gray-950/95 px-3 pb-4 pt-3 shadow-[0_-8px_28px_rgba(0,0,0,0.6)] backdrop-blur lg:rounded-xl lg:border lg:border-gray-800 lg:bg-gray-900 lg:p-4 lg:pt-4 lg:shadow-lg">
@@ -90,8 +94,10 @@ export default function Transport({
         playback={playback}
         speed={speed}
         totalEm={totalEm}
+        markers={markers}
         now={now}
         onScrubTo={onScrubTo}
+        onSetMarkers={onSetMarkers}
       />
     </section>
   )

@@ -42,6 +42,17 @@ export type Calibration = {
   bottom: number
 }
 
+/**
+ * In/out scroll bounds in em. Playback — auto-scroll, manual drag, and the
+ * scrub slider — is clamped to [inEm, outEm] on every device.
+ */
+export type Markers = {
+  /** Lower bound in em; scrolling can't go before this. */
+  inEm: number
+  /** Upper bound in em, or null for the end of the script. */
+  outEm: number | null
+}
+
 export type DisplayInfo = {
   w: number
   h: number
@@ -61,6 +72,8 @@ export type SessionData = {
   settings: Settings
   playback: Playback
   calibration: Calibration
+  /** Optional in/out scroll bounds; absent = whole script. */
+  markers?: Markers
   displays?: Record<string, DisplayInfo>
 }
 
@@ -100,4 +113,9 @@ export const DEFAULT_PLAYBACK: Playback = {
 export const DEFAULT_CALIBRATION: Calibration = {
   top: 0.15,
   bottom: 0.85,
+}
+
+export const DEFAULT_MARKERS: Markers = {
+  inEm: 0,
+  outEm: null,
 }
