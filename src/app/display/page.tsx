@@ -85,50 +85,80 @@ function CodeEntry({
     join(initialCode)
   }, [initialCode, join])
 
+  // Track the visual viewport so the form centers in the area *above* the
+  // on-screen keyboard. Without this, `justify-center` centers against the full
+  // layout viewport and the keyboard slides up over the input on mobile.
+  const [vv, setVv] = useState<{ height: number; top: number } | null>(null)
+  useEffect(() => {
+    const v = window.visualViewport
+    if (!v) return
+    const update = () => setVv({ height: v.height, top: v.offsetTop })
+    update()
+    v.addEventListener('resize', update)
+    v.addEventListener('scroll', update)
+    return () => {
+      v.removeEventListener('resize', update)
+      v.removeEventListener('scroll', update)
+    }
+  }, [])
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-black p-6">
-      <div className="flex flex-col items-center gap-2">
-        <Logo className="h-9 w-auto" />
-        <span className="text-sm font-medium uppercase tracking-[0.3em] text-gray-500">Display</span>
-      </div>
-      <p className="text-center text-sm text-gray-500">
-        Enter the 4-letter code shown on the host device
-      </p>
-
-      {!isFirebaseConfigured() && (
-        <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-200">
-          Firebase is not configured — set up <code>.env.local</code> first (see README).
+    <main
+      className="fixed inset-x-0 top-0 flex flex-col items-center overflow-y-auto bg-black p-6"
+      style={
+        vv
+          ? { height: vv.height, transform: `translateY(${vv.top}px)` }
+          : { minHeight: '100dvh' }
+      }
+    >
+      {/* m-auto centers the block when there's room, but lets it scroll instead
+          of clipping the top when the keyboard leaves very little height. */}
+      <div className="m-auto flex w-full max-w-xs flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-2">
+          <Logo className="h-9 w-auto" />
+          <span className="text-sm font-medium uppercase tracking-[0.3em] text-gray-500">
+            Display
+          </span>
+        </div>
+        <p className="text-center text-sm text-gray-500">
+          Enter the 4-letter code shown on the host device
         </p>
-      )}
 
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
-        onKeyDown={(e) => e.key === 'Enter' && join()}
-        maxLength={4}
-        autoFocus
-        autoComplete="off"
-        placeholder="CBHU"
-        className="w-64 rounded-2xl border-2 border-gray-700 bg-gray-950 px-4 py-5 text-center font-mono text-5xl font-bold tracking-[0.35em] text-cyan-300 placeholder-gray-800 focus:border-cyan-500 focus:outline-none"
-      />
+        {!isFirebaseConfigured() && (
+          <p className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-200">
+            Firebase is not configured — set up <code>.env.local</code> first (see README).
+          </p>
+        )}
 
-      <button
-        onClick={() => join()}
-        disabled={!isValidCode(value) || busy || !isFirebaseConfigured()}
-        className="w-64 rounded-2xl bg-cyan-600 px-6 py-4 text-xl font-semibold text-white transition enabled:active:bg-cyan-500 disabled:opacity-40"
-      >
-        {busy ? 'Connecting…' : 'Connect'}
-      </button>
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+          onKeyDown={(e) => e.key === 'Enter' && join()}
+          maxLength={4}
+          autoFocus
+          autoComplete="off"
+          placeholder="CBHU"
+          className="w-64 rounded-2xl border-2 border-gray-700 bg-gray-950 px-4 py-5 text-center font-mono text-5xl font-bold tracking-[0.35em] text-cyan-300 placeholder-gray-800 focus:border-cyan-500 focus:outline-none"
+        />
 
-      {error && <p className="max-w-xs text-center text-sm text-red-400">{error}</p>}
+        <button
+          onClick={() => join()}
+          disabled={!isValidCode(value) || busy || !isFirebaseConfigured()}
+          className="w-64 rounded-2xl bg-cyan-600 px-6 py-4 text-xl font-semibold text-white transition enabled:active:bg-cyan-500 disabled:opacity-40"
+        >
+          {busy ? 'Connecting…' : 'Connect'}
+        </button>
 
-      <a
-        href="/host"
-        className="mt-4 flex items-center gap-2 rounded-lg border border-gray-800 px-4 py-2 text-sm text-gray-400 transition hover:border-gray-600 hover:text-gray-200"
-      >
-        <IconSliders size={16} />
-        Switch to host mode
-      </a>
+        {error && <p className="max-w-xs text-center text-sm text-red-400">{error}</p>}
+
+        <a
+          href="/host"
+          className="mt-4 flex items-center gap-2 rounded-lg border border-gray-800 px-4 py-2 text-sm text-gray-400 transition hover:border-gray-600 hover:text-gray-200"
+        >
+          <IconSliders size={16} />
+          Switch to host mode
+        </a>
+      </div>
     </main>
   )
 }

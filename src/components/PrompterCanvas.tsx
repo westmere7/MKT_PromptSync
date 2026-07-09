@@ -51,8 +51,10 @@ export default function PrompterCanvas({
   const bandTop = calibration.top * height
   const bandBottom = calibration.bottom * height
   // Lead-in: blank space before the first line so, at position 0, the first
-  // line sits just below the canvas and scrolls up into the reading band.
-  const leadInPx = Math.max(0, height - bandTop)
+  // line sits at the bottom edge of the reading band and scrolls up through it.
+  // Anchoring to the band (not the full screen) keeps the start inside the
+  // calibrated frame, so the phone matches what was set in calibration.
+  const leadInPx = Math.max(0, bandBottom - bandTop)
 
   // Measure segment offsets (in em) whenever layout-affecting inputs change
   useLayoutEffect(() => {
